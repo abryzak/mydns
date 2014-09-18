@@ -134,7 +134,7 @@ def json_resp(d):
     resp.headers['Content-Type'] = "application/json"
     return resp
 
-@app.route('/api/zones')
+@app.route('/api/zones', methods=['POST'])
 def list_zones():
     token = request.form['token']
     if not token: abort(400)
