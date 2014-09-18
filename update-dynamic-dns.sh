@@ -12,7 +12,7 @@ external_zone="external.$zone"
 
 curl --fail -sS >/dev/null -F zone="$external_zone" -F token="$external_token" -F label="$label" "https://my-dns.org/api/update-record" || echo >&2 "Updating external DNS failed"
 
-ip="$(hostname -I | head -n 1)"
+ip="$(hostname -I | cut -d ' ' -f 1)"
 if [[ -n "$ip" ]]; then
 	curl --fail -sS >/dev/null -F zone="$internal_zone" -F token="$internal_token" -F label="$label" -F data="$ip" "https://my-dns.org/api/update-record" || echo >&2 "Updating internal DNS failed"
 fi
