@@ -10,6 +10,10 @@ import redis
 
 r = redis.StrictRedis()
 
+record_validation = {
+    'A': lambda d: re.match(r'^([0-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5]\.){3}[0-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5]$')
+}
+
 def init_config():
     config = r.hgetall('mydns')
     new_config = dict(config)
@@ -63,11 +67,15 @@ def update_record():
     token = request.form['token']
     if not token: abort(400)
     zone = normalize_zone(request.form['zone'])
-    label = normalize_label(request.form.get('label', '', str))
+    label = normalize_label(request.form.get('label', '', type=str))
     # TODO support all record types and constant values
-    rr_type = 'A'
+    rr_type = request.form.get('rr_type', 'A', type=str)
+    if rr_type not in record_validation:
+        abort(400)
     rr_ttl = 60*5 # 5 minutes
-    rr_data = request.remote_addr
+    rr_data = request.form.get('rr_data', request.remote_addr, type=str)
+    if not record_validation[rr_type](rr_data):
+        abort(400)
     rr_key = 0 # different keys allow multiple records of the same type for the same label
     zone_key = 'mydns:%s' % zone
     if token != r.hget(zone_key, 'token'): abort(401)
