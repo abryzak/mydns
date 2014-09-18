@@ -12,6 +12,7 @@ import os
 import re
 import subprocess
 import tempfile
+
 from uuid import uuid4
 from contextlib import contextmanager
 
@@ -31,8 +32,14 @@ DEFAULT_DYNAMIC_TTL = '5m'
 DEFAULT_STATIC_TTL = '1d'
 TTL_REGEX = re.compile(r'^([1-9]w|[1-9]\d?d|[1-9]\d{0,2}[hm]|[1-9]\d{0,8})?$')
 
+# potential race condition but not much we can do about it
+umask = os.umask(0)
+os.umask(umask)
+
 @contextmanager
-def atomically_write(name):
+def atomically_write(name, perms=0666, use_umask=True):
+    if use_umask:
+        perms &= ~umask
     dirname = os.path.dirname(name) or '.'
     basename = os.path.basename(name)
     tmpname = None
@@ -40,6 +47,7 @@ def atomically_write(name):
         with tempfile.NamedTemporaryFile(delete=False) as f:
             tmpname = f.name
             yield f
+        os.chmod(tmpname, perms)
         os.rename(tmpname, name)
     finally:
         try:
