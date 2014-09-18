@@ -187,12 +187,17 @@ def update_record():
     label_part_key = '%s:%s:%d' % (label, rr_type, rr_key)
     label_key = '%s:%s' % (zone_key, label_part_key)
     def t(p):
+        current_data = p.hgetall(label_key)
+        new_data = {'ttl': rr_ttl, 'data': rr_data}
+        if current_data == new_data: return
+        p.multi()
         p.sadd('%s:labels' % zone_key, label_part_key)
         p.delete(label_key)
-        p.hmset(label_key, {'ttl': rr_ttl, 'data': rr_data})
-    r.transaction(t)
-    update_zone_file(zone)
-    reload_bind_configuration()
+        p.hmset(label_key, new_data)
+    results = r.transaction(t, label_key)
+    if len(results) > 0:
+        update_zone_file(zone)
+        reload_bind_configuration()
     return json_resp({'zone': zone, 'label': label, 'type': rr_type, 'ttl': rr_ttl, 'data': rr_data})
 
 if __name__ == '__main__':
