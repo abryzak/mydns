@@ -1,11 +1,14 @@
 from __future__ import print_function
 
+import re
+import json
 from uuid import uuid4
 
-from flask import Flask, request, abort, g
+from flask import Flask, request, abort, make_response
 
 import redis
-import re
+
+r = redis.StrictRedis()
 
 def init_config():
     config = r.hgetall('mydns')
@@ -37,6 +40,11 @@ def normalize_label(label):
         abort(400)
     return label
 
+def json_resp(d):
+    resp = make_response(json.dumps(d))
+    resp.headers['Content-Type'] = "application/json"
+    return resp
+
 @app.route('/api/create-zone', methods=['POST'])
 def create_zone():
     token = request.form['token']
@@ -47,7 +55,8 @@ def create_zone():
     zone_token = str(uuid4())
     if not r.hsetnx(zone_key, 'token', zone_token):
         return 'zone exists', 400
-    return json.dumps({'token': zone_token})
+    update_zone_file(zone)
+    return json_resp({'token': zone_token})
 
 @app.route('/api/update-record', methods=['POST'])
 def update_record():
@@ -68,6 +77,7 @@ def update_record():
         p.hmset(label_key, {'ttl': rr_ttl, 'data': rr_data})
     r.transaction(t)
     update_zone_file(zone)
+    return json_resp({})
 
 if __name__ == '__main__':
     app.run()
